@@ -1,6 +1,4 @@
-using System;
 using System.IO;
-using NuGet.Common;
 using NuKeeper.ProjectReader.Logging;
 using NUnit.Framework;
 
@@ -9,9 +7,12 @@ namespace NuKeeper.ProjectReader.Tests
     public class ReaderTest
     {
         [Test]
-        public void ReadTempFolder()
+        public void ReadEmpty()
         {
-            var path = "c:\\temp";
+            var testDataFolder = TestDataFolder();
+
+            var path = Path.Join(testDataFolder, "Empty");
+
             var packages = Reader.FindAllNuGetPackages(path, new NullNuKeeperLogger());
 
             Assert.That(packages, Is.Not.Null);
@@ -31,6 +32,18 @@ namespace NuKeeper.ProjectReader.Tests
         }
 
         [Test]
+        public void ReadFullFrameWorkProject()
+        {
+            var testDataFolder = TestDataFolder();
+
+            var path = Path.Join(testDataFolder, "FullFrameworkCsProj");
+            var packages = Reader.FindAllNuGetPackages(path, new NullNuKeeperLogger());
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Not.Empty);
+        }
+
+        [Test]
         public void ReadDirBuildPropsProject()
         {
             var testDataFolder = TestDataFolder();
@@ -41,7 +54,6 @@ namespace NuKeeper.ProjectReader.Tests
             Assert.That(packages, Is.Not.Null);
             Assert.That(packages, Is.Not.Empty);
         }
-
 
         private static string TestDataFolder()
         {
