@@ -1,4 +1,4 @@
-name: .NET Core
+name: .NET Core build and test
 
 on:
   push:
@@ -8,15 +8,12 @@ on:
 
 jobs:
   build:
-
+    name: Build and test
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 3.1.101
     - name: Install dependencies
       run: dotnet restore
     - name: Build
