@@ -1,0 +1,1 @@
+A .Net core project with a "Directory.Build.props" file

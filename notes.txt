@@ -1,0 +1,20 @@
+NuKeeper file system scanner
+
+File system could be made pluggable, if there's a need for that (e.g. use a remote repo as a file system)
+
+The plan is for test coverage to be high, but mostly not at the "one class, on test class, and mock the rest" level. We test at the api: scanning projects on a file systems, using a set of test data projects, on a file system. 
+So tests are less coupled, but covering all useful cases. And still very much fast enough. Therefor easier to refactor.
+Although there might be some lower level tests as well.
+
+Needs test case eaxamples for:
+* .NET full framework project 
+* vbproj, fsproj, etc.
+* Directory.Build.Props include files
+* multiple projects in a solution
+* And some "expected bad data" cases
+
+Any other parts would simply use this at the public api "Scan" call, and not worry about the implementation or tests.
+
+I expect this part to be the first to stabilise.
+
+The location of shared parts that cross the interface (e.g. INuKeeperLogger) is difficult, but then it always was.
