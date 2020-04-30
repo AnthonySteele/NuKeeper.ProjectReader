@@ -16,6 +16,7 @@ namespace NuKeeper.ProjectReader.Tests
 
             Assert.That(packages, Is.Not.Null);
             Assert.That(packages.Count, Is.EqualTo(expectedCount));
+            PackageAssert.AllPopulated(packages);
         }
 
         private static string TestDataFolder()
