@@ -39,6 +39,7 @@ namespace NuKeeper.ProjectReader.Tests
             new object[] { "TwoNetCoreCsProj", 4 },
             new object[] { "DirBuildProps", 1 },
             new object[] { "DirBuildPropsMixed", 2 },
+            new object[] { "NuspecFile", 1 }
         };
     }
 }

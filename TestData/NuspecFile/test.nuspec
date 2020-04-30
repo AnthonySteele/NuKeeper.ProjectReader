@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+    <metadata minClientVersion="3.3">
+        <id>Hello.world</id>
+        <version>1.0.0</version>
+        <title>Greeting library</title>
+        <authors>Alfred Neuman</authors>
+        <description>Greetings for the world</description>
+        <contentFiles>
+            <files include="*" />
+        </contentFiles> 
+		<dependencies>
+			<dependency id="Newtonsoft.Json" version="11.0.2" />
+		</dependencies>
+    </metadata>
+</package>

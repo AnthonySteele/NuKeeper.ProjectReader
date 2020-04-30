@@ -1,0 +1,1 @@
+Test with a package reference in a nuget package spec file
