@@ -1,0 +1,2 @@
+A .Net core project with package references in a "Directory.Build.props" file
+and in the .csproj file

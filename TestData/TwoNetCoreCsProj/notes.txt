@@ -1,0 +1,1 @@
+Two .Net core C# projects

@@ -1,1 +1,1 @@
-A simple .Net core project
+A simple .Net core c# project
