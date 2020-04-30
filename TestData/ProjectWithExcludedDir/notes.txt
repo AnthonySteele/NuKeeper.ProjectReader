@@ -1,0 +1,2 @@
+A .Net core c# project
+with a /bin/ folder that should be ignored
