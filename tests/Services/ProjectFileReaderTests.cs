@@ -1,0 +1,351 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using NuGet.Versioning;
+using NuKeeper.ProjectReader.Data;
+using NuKeeper.ProjectReader.Logging;
+using NuKeeper.ProjectReader.Services;
+using NUnit.Framework;
+
+namespace NuKeeper.ProjectReader.Tests.Services
+{
+    [TestFixture]
+    public class ProjectFileReaderTests
+    {
+        private const string Vs2017ProjectFileTemplateWithPackages =
+@"<Project Sdk=""Microsoft.NET.Sdk"">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+{{Packages}}
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include=""other.csproj"" />
+  </ItemGroup>
+</Project>";
+
+        private const string Vs2017ProjectFileTemplateWithoutPackages =
+            @"<Project Sdk=""Microsoft.NET.Sdk"">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include=""other.csproj"" />
+  </ItemGroup>
+</Project>";
+
+        private const string Vs2017ProjectFileFullFrameworkWithPackages =
+            @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" ToolsVersion=""14.0"" DefaultTargets=""Build"">
+  <ItemGroup>
+    <PackageReference Include=""StyleCop.Analyzers"">
+      <Version>1.0.2</Version>
+    </PackageReference>
+  </ItemGroup>
+</Project>
+";
+
+        [Test]
+        public void NoProjectCanBeRead()
+        {
+            const string NoProject =
+                @"<?xml version=""1.0"" encoding=""utf-8""?>
+<foo>
+</foo>";
+
+            var packages = ParseContent(NoProject);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void EmptyProjectCanBeRead()
+        {
+            const string NoProject =
+                @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project>
+</Project>";
+
+            var packages = ParseContent(NoProject);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void UnusualEncodingProjectCanBeRead()
+        {
+            const string NoProject =
+                @"<?xml version=""1.0"" encoding=""Windows-1252""?>
+<Project>
+</Project>";
+
+            var packages = ParseContent(NoProject);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void ProjectWithoutPackageListCanBeRead()
+        {
+            var packages = ParseContent(Vs2017ProjectFileTemplateWithoutPackages);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void ProjectWithEmptyPackageListCanBeRead()
+        {
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", "", StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void SinglePackageCanBeRead()
+        {
+            const string packagesText = @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages, Is.Not.Empty);
+        }
+
+        [Test]
+        public void SinglePackageIsPopulated()
+        {
+            const string packagesText = @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            var package = packages.FirstOrDefault();
+
+            PackageAssert.IsPopulated(package);
+            Assert.That(package.IsPrerelease, Is.False);
+            Assert.That(package.ProjectReferences, Is.Not.Null);
+            Assert.That(package.ProjectReferences.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ProjectReferencesIsPopulated()
+        {
+            const string packagesText = @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            var package = packages.FirstOrDefault();
+
+            Assert.That(package.ProjectReferences.Count, Is.EqualTo(1));
+
+            StringAssert.EndsWith("other.csproj", package.ProjectReferences.First());
+        }
+
+        [Test]
+        public void RelativeProjectReferencesIsPopulated()
+        {
+            const string packagesText = @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var relativePath = $"..{Path.DirectorySeparatorChar}other{Path.DirectorySeparatorChar}other.csproj";
+            projectFile = projectFile.Replace("other.csproj", relativePath, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            var package = packages.FirstOrDefault();
+
+            Assert.That(package.ProjectReferences.Count, Is.EqualTo(1));
+
+            var path = package.ProjectReferences.First();
+
+            StringAssert.EndsWith($"other{Path.DirectorySeparatorChar}other.csproj", path);
+            StringAssert.DoesNotContain("..", path);
+        }
+
+        [Test]
+        public void SinglePackageIsCorectlyRead()
+        {
+            const string packagesText = @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile);
+
+            var package = packages.FirstOrDefault();
+
+            Assert.That(package.Id, Is.EqualTo("foo"));
+            Assert.That(package.Version, Is.EqualTo(new NuGetVersion("1.2.3")));
+            Assert.That(package.Path.PackageReferenceType, Is.EqualTo(PackageReferenceType.ProjectFile));
+        }
+
+        [Test]
+        public void SinglePackageFullFrameworkProjectIsCorectlyRead()
+        {
+            var packages = ParseContent(Vs2017ProjectFileFullFrameworkWithPackages);
+
+            var package = packages.Single();
+
+            Assert.That(package.Id, Is.EqualTo("StyleCop.Analyzers"));
+            Assert.That(package.Version, Is.EqualTo(new NuGetVersion("1.0.2")));
+            Assert.That(package.Path.PackageReferenceType, Is.EqualTo(PackageReferenceType.ProjectFileOldStyle));
+        }
+
+        [Test]
+        public void WhenTwoPackagesAreRead_TheyArePopulated()
+        {
+            const string packagesText =
+                @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>
+                  <PackageReference Include=""bar"" Version=""2.3.4""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages, Is.Not.Null);
+            Assert.That(packages.Count, Is.EqualTo(2));
+            PackageAssert.IsPopulated(packages[0]);
+            PackageAssert.IsPopulated(packages[1]);
+        }
+
+        [Test]
+        public void WhenTwoPackagesAreRead_ValuesAreCorrect()
+        {
+            const string packagesText =
+                @"<PackageReference Include=""foo"" Version=""1.2.3""></PackageReference>
+                  <PackageReference Include=""bar"" Version=""2.3.4""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages[0].Id, Is.EqualTo("foo"));
+            Assert.That(packages[0].Version, Is.EqualTo(new NuGetVersion("1.2.3")));
+
+            Assert.That(packages[1].Id, Is.EqualTo("bar"));
+            Assert.That(packages[1].Version, Is.EqualTo(new NuGetVersion("2.3.4")));
+        }
+
+        [Test]
+        public void ResultIsReiterable()
+        {
+            var packages = ParseContent(Vs2017ProjectFileTemplateWithPackages)
+                .ToList();
+
+            PackageAssert.AllPopulated(packages);
+            Assert.That(packages.Select(p => p.Path), Is.All.Not.Null);
+        }
+
+        [Test]
+        public void WhenOnePackageCannotBeRead_TheOthersAreStillRead()
+        {
+            const string packagesText =
+                @"<PackageReference Include=""foo"" Version=""notaversion""></PackageReference>
+                  <PackageReference Include=""bar"" Version=""2.3.4""></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", packagesText, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages.Count, Is.EqualTo(1));
+            PackageAssert.IsPopulated(packages[0]);
+        }
+
+        [Test]
+        public void PackageWithoutVersionShouldBeSkipped()
+        {
+            const string noVersion =
+                @"<PackageReference Include=""Microsoft.AspNetCore.App"" />";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", noVersion, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void PackageWithWildCardVersionShouldBeSkipped()
+        {
+            const string noVersion =
+                @"<PackageReference Include=""AWSSDK.Core"" Version=""3.3.*"" />";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", noVersion, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages, Is.Empty);
+        }
+
+        [Test]
+        public void PackageWithBetaVersionShouldBeRead()
+        {
+            const string noVersion =
+                @"<PackageReference Include=""foo"" Version=""2.0.0-beta01"" />";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", noVersion, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages.Count, Is.EqualTo(1));
+            Assert.That(packages.First().IsPrerelease, Is.True);
+        }
+
+        [Test]
+        public void PackageWithMetadataShouldBeRead()
+        {
+            const string noVersion =
+                @"<PackageReference Include=""NuGet.Protocol"" Version=""4.7.0+9245481f357ae542f92e6bc5e504fc898cfe5fc0"" />";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", noVersion, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages.Count, Is.EqualTo(1));
+            Assert.That(packages.First().IsPrerelease, Is.False);
+        }
+
+        [Test]
+        public void PackageWithAssetsVersionShouldBeRead()
+        {
+            const string noVersion =
+                @"<PackageReference Include=""foo""><Version>15.0.26606</Version><ExcludeAssets>all</ExcludeAssets></PackageReference>";
+
+            var projectFile = Vs2017ProjectFileTemplateWithPackages.Replace("{{Packages}}", noVersion, StringComparison.OrdinalIgnoreCase);
+
+            var packages = ParseContent(projectFile)
+                .ToList();
+
+            Assert.That(packages.Count, Is.EqualTo(1));
+            PackageAssert.IsPopulated(packages[0]);
+        }
+
+        private static IReadOnlyCollection<PackageInProject> ParseContent(string fileContents)
+        {
+            var file = new TestFile("testfile", fileContents);
+            IPackageReferenceFinder reader = new ProjectFileReader(new NullNuKeeperLogger());
+            return reader.ReadFile(file, "c://code//test");
+        }
+    }
+}
