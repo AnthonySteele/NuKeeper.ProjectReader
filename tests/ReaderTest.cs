@@ -29,6 +29,7 @@ namespace NuKeeper.ProjectReader.Tests
 
         // picked up as an "unused field", but it is used via TestCaseSource attribute above
 #pragma warning disable CA1823
+#pragma warning disable IDE0052
         private static readonly object[] ListTestCases =
         {
             new object[] { "Empty", 0 },
