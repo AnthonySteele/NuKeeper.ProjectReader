@@ -34,7 +34,7 @@ namespace NuKeeper.ProjectReader.Tests
             Assert.That(package.Path, Is.Not.Null);
 
             Assert.That(package.Id, Is.Not.Empty);
-            Assert.That(package.Version.ToString(), Is.Not.Empty);
+            Assert.That(package.Version?.ToString(), Is.Not.Empty);
             Assert.That(package.ProjectReferences, Is.Not.Null);
         }
     }
