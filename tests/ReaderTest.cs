@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using NuKeeper.ProjectReader.Data;
 using NuKeeper.ProjectReader.Logging;
 using NUnit.Framework;
 
@@ -12,11 +14,17 @@ namespace NuKeeper.ProjectReader.Tests
             var testDataFolder = TestDataFolder();
 
             var path = Path.Join(testDataFolder, folderName);
-            var packages = Reader.FindAllNuGetPackages(path, new NullNuKeeperLogger());
+            var packages = FindAllNuGetPackages(path);
 
             Assert.That(packages, Is.Not.Null);
             Assert.That(packages.Count, Is.EqualTo(expectedCount));
             PackageAssert.AllPopulated(packages);
+        }
+
+        private static IReadOnlyCollection<PackageInProject> FindAllNuGetPackages(string path)
+        {
+            var reader = new Reader(new NullNuKeeperLogger());
+            return reader.FindAllNuGetPackages(path);
         }
 
         private static string TestDataFolder()

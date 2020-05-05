@@ -7,13 +7,19 @@ using NuKeeper.ProjectReader.Services;
 
 namespace NuKeeper.ProjectReader
 {
-    public static class Reader
+    public class Reader : IReader
     {
-        public static IReadOnlyCollection<PackageInProject> FindAllNuGetPackages(string path, INuKeeperLogger logger)
-        {
-            var folder = new FileSystem(new DirectoryInfo(path), logger);
-            var scanner = BuildScanner(logger);
+        private readonly INuKeeperLogger _logger;
 
+        public Reader(INuKeeperLogger logger)
+        {
+            _logger = logger;
+        }
+
+        public IReadOnlyCollection<PackageInProject> FindAllNuGetPackages(string path)
+        {
+            var folder = new FileSystem(new DirectoryInfo(path), _logger);
+            var scanner = BuildScanner(_logger);
             return scanner.FindAllNuGetPackages(folder);
         }
 
